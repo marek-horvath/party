@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import SettingsMenu from '../components/SettingsMenu'
 import Wheel from '../components/Wheel'
 import PersonWheel from '../components/PersonWheel'
@@ -27,44 +27,75 @@ export default function Home() {
   const [wheelResult, setWheelResult] = useState(null)
   const [personResult, setPersonResult] = useState(null)
 
-  const [showTruth, setShowTruth] = useState(false)
-  const [showDare, setShowDare] = useState(false)
+  // difficulty state lifted up
+  const [difficulty, setDifficulty] = useState({
+    normal: true,
+    deep: true,
+    spicy: true,
+  })
+
+  // all tasks from CSV
+  const [tasks, setTasks] = useState([])
+
+  // popup state
+  const [showPopup, setShowPopup] = useState(false)
+  const [popupTitle, setPopupTitle] = useState('')
   const [popupTask, setPopupTask] = useState('')
+  const [popupRank, setPopupRank] = useState('')
 
-  const truthTasks = [
-    'What is your most embarrassing moment?',
-    'Have you ever lied to your best friend?',
-    'What secret are you keeping right now?'
-  ]
-  const dareTasks = [
-    'Sing a verse of your favorite song loudly.',
-    'Do 10 push-ups in a row.',
-    'Dance without music for 30 seconds.'
-  ]
+  // load difficulty from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('tdDifficulty')
+    if (saved) {
+      try {
+        setDifficulty(JSON.parse(saved))
+      } catch {}
+    }
+  }, [])
 
-  const updateSegment = (i, key, value) =>
-    setSegments(segs =>
-      segs.map((s, idx) =>
-        idx === i ? { ...s, [key]: key === 'weight' ? +value : value } : s
-      )
+  // fetch and parse CSV
+  useEffect(() => {
+    fetch(
+      'https://docs.google.com/spreadsheets/d/e/2PACX-1vSMXaGByYnSQq16DSDmPH-7l_5D_rA-_weE4wbzIA1IklH6Cjn_FWbjhMf3q_3S7aMs-4i_qQTz_Kf2/pub?gid=0&single=true&output=csv'
     )
-  const addSegment = () =>
-    setSegments(segs => [...segs, { label: '', weight: 10 }])
-  const removeSegment = i =>
-    setSegments(segs => segs.filter((_, idx) => idx !== i))
+      .then(r => r.text())
+      .then(text => {
+        const lines = text.trim().split(/\r?\n/)
+        const data = []
+        lines.slice(1).forEach(line => {
+          // simple CSV split on first two commas, rest is task
+          const [TYPE, RANK, ...rest] = line.split(',')
+          const TASK = rest.join(',').replace(/^"|"$/g, '')
+          data.push({ TYPE, RANK, TASK })
+        })
+        setTasks(data)
+      })
+  }, [])
 
-  const addPerson = () =>
-    setPersons(ps => [...ps, { label: `Player ${ps.length + 1}` }])
-  const removePerson = i =>
-    setPersons(ps => ps.filter((_, idx) => idx !== i))
-
-  const openTruth = () => {
-    setPopupTask(truthTasks[Math.floor(Math.random() * truthTasks.length)])
-    setShowTruth(true)
+  // toggle difficulty and persist
+  const onToggleDifficulty = key => {
+    const updated = { ...difficulty, [key]: !difficulty[key] }
+    setDifficulty(updated)
+    localStorage.setItem('tdDifficulty', JSON.stringify(updated))
   }
-  const openDare = () => {
-    setPopupTask(dareTasks[Math.floor(Math.random() * dareTasks.length)])
-    setShowDare(true)
+
+  // truth/dare click handler
+  const handleTD = type => {
+    const upper = type.toUpperCase()
+    const pool = tasks.filter(
+      t => t.TYPE === upper && difficulty[t.RANK.toLowerCase()]
+    )
+    if (pool.length === 0) {
+      setPopupTitle(type)
+      setPopupRank('NONE')
+      setPopupTask('No tasks available for these settings.')
+    } else {
+      const pick = pool[Math.floor(Math.random() * pool.length)]
+      setPopupTitle(type)
+      setPopupRank(pick.RANK)
+      setPopupTask(pick.TASK)
+    }
+    setShowPopup(true)
   }
 
   return (
@@ -73,15 +104,33 @@ export default function Home() {
         show={showMenu}
         segments={segments}
         persons={persons}
-        onAddSegment={addSegment}
-        onRemoveSegment={removeSegment}
-        onUpdateSegment={updateSegment}
-        onAddPerson={addPerson}
-        onRemovePerson={removePerson}
+        difficulty={difficulty}
+        onToggleDifficulty={onToggleDifficulty}
+        onAddSegment={() =>
+          setSegments(s => [...s, { label: '', weight: 10 }])
+        }
+        onRemoveSegment={i =>
+          setSegments(s => s.filter((_, idx) => idx !== i))
+        }
+        onUpdateSegment={(i, key, val) =>
+          setSegments(s =>
+            s.map((seg, idx) =>
+              idx === i
+                ? { ...seg, [key]: key === 'weight' ? +val : val }
+                : seg
+            )
+          )
+        }
+        onAddPerson={() =>
+          setPersons(p => [...p, { label: `Player ${p.length + 1}` }])
+        }
+        onRemovePerson={i =>
+          setPersons(p => p.filter((_, idx) => idx !== i))
+        }
       />
 
       <button
-        onClick={() => setShowMenu(v => !v)}
+        onClick={() => setShowMenu(m => !m)}
         className="absolute top-4 left-4 px-3 py-1 bg-gray-700 rounded"
       >
         {showMenu ? 'Close' : 'Settings'}
@@ -90,7 +139,9 @@ export default function Home() {
       <div className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="space-y-2 mb-6 text-center">
           {wheelResult && <div className="text-2xl">Wheel: {wheelResult}</div>}
-          {personResult && <div className="text-2xl">Person: {personResult}</div>}
+          {personResult && (
+            <div className="text-2xl">Person: {personResult}</div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
@@ -107,17 +158,17 @@ export default function Home() {
         </div>
       </div>
 
-      {/* tu sa vynorí náš nový panel s veľkými kartami */}
-      <TruthDarePanel onTruth={openTruth} onDare={openDare} />
+      <TruthDarePanel
+        onTruth={() => handleTD('truth')}
+        onDare={() => handleTD('dare')}
+      />
 
       <Popup
-        show={showTruth || showDare}
-        title={showTruth ? 'Truth' : 'Dare'}
+        show={showPopup}
+        title={popupTitle}
         task={popupTask}
-        onClose={() => {
-          setShowTruth(false)
-          setShowDare(false)
-        }}
+        rank={popupRank}
+        onClose={() => setShowPopup(false)}
       />
     </div>
   )
