@@ -2,57 +2,47 @@
 
 import React, { useState, useRef } from 'react'
 
-export default function Wheel({ segments, onResult, className, buttonColor }) {
+export default function Wheel({ segments, onResult, buttonColor }) {
   const wheelRef = useRef(null)
   const [spinning, setSpinning] = useState(false)
 
-  // predpočítame uhly a gradient
-  const total = segments.reduce((sum, s) => sum + s.weight, 0) || 1
+  const total = segments.reduce((s, x) => s + x.weight, 0) || 1
   const angles = segments.map(s => (s.weight / total) * 360)
   const cum = angles.reduce(
     (arr, a) => [...arr, (arr.length ? arr[arr.length - 1] : 0) + a],
     []
   )
-  const colors = segments.map((_, i) => `hsl(${Math.round((i * 360) / segments.length)},70%,60%)`)
+  const colors = segments.map((_, i) => `hsl(${(i * 360) / segments.length},70%,60%)`)
   const gradient = colors
-    .map((c, i) => {
-      const start = i === 0 ? 0 : cum[i - 1]
-      const end = cum[i]
-      return `${c} ${start}deg ${end}deg`
-    })
+    .map((c, i) => `${c} ${i===0?0: cum[i-1]}deg ${cum[i]}deg`)
     .join(', ')
 
-  const handleSpin = () => {
+  const spin = () => {
     if (spinning) return
-    // náhodný výber
-    const rnd = Math.random() * total
     let acc = 0, idx = 0
+    const rnd = Math.random() * total
     for (; idx < segments.length; idx++) {
       acc += segments[idx].weight
       if (rnd <= acc) break
     }
-    const startA = idx === 0 ? 0 : cum[idx - 1]
-    const center = startA + angles[idx] / 2
-    const final = 3 * 360 + (360 - center)
+    const startA = idx===0?0:cum[idx-1]
+    const center = startA + angles[idx]/2
+    const final = 3*360 + (360 - center)
 
     setSpinning(true)
-    const wheel = wheelRef.current
-    wheel.style.transition = 'transform 4s ease-out'
-    wheel.style.transform = `rotate(${final}deg)`
-    wheel.addEventListener(
-      'transitionend',
-      () => {
-        setSpinning(false)
-        wheel.style.transition = 'none'
-        wheel.style.transform = `rotate(${-center}deg)`
-        onResult(segments[idx].label)
-      },
-      { once: true }
-    )
+    const w = wheelRef.current
+    w.style.transition = 'transform 4s ease-out'
+    w.style.transform = `rotate(${final}deg)`
+    w.addEventListener('transitionend', () => {
+      setSpinning(false)
+      w.style.transition = 'none'
+      w.style.transform = `rotate(${-center}deg)`
+      onResult(segments[idx].label)
+    }, { once:true })
   }
 
   return (
-    <div className={`flex flex-col items-center ${className || ''}`}>
+    <div className="flex flex-col items-center">
       <div className="relative inline-block">
         <div className="absolute left-1/2 -top-8 transform -translate-x-1/2 text-red-500 text-4xl">▲</div>
         <div
@@ -62,13 +52,11 @@ export default function Wheel({ segments, onResult, className, buttonColor }) {
         />
       </div>
       <button
-        onClick={handleSpin}
+        onClick={spin}
         disabled={spinning}
-        className={`mt-4 px-6 py-2 rounded text-white ${
-          spinning ? 'bg-gray-600 cursor-not-allowed' : buttonColor
-        }`}
+        className={`mt-4 px-6 py-2 rounded text-white ${spinning?'bg-gray-600 cursor-not-allowed':buttonColor}`}
       >
-        {spinning ? 'Spinning…' : 'Spin'}
+        {spinning?'Spinning…':'Spin'}
       </button>
     </div>
   )

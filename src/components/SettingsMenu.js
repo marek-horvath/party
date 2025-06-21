@@ -1,3 +1,4 @@
+// src/components/SettingsMenu.js
 'use client'
 
 import React, { useEffect } from 'react'
@@ -14,7 +15,7 @@ export default function SettingsMenu({
   onAddPerson,
   onRemovePerson,
 }) {
-  // uložíme difficulty aj sem, ale keepíme ho v Home cez props
+  // vždy keď sa difficulty zmení, uložíme do localStorage
   useEffect(() => {
     localStorage.setItem('tdDifficulty', JSON.stringify(difficulty))
   }, [difficulty])
@@ -23,7 +24,8 @@ export default function SettingsMenu({
     <div
       className={`fixed top-0 left-0 h-full bg-gray-800 transform ${
         show ? 'translate-x-0' : '-translate-x-full'
-      } transition-transform duration-300 w-96 overflow-auto pt-16 pb-6 px-6`}
+      } transition-transform duration-300
+         w-full md:w-96 z-30 overflow-auto pt-16 pb-6 px-6`}
     >
       {/* --- Wheel segments --- */}
       <h2 className="text-2xl mb-4">Wheel segments</h2>
@@ -90,33 +92,23 @@ export default function SettingsMenu({
       {/* --- Truth/Dare Difficulty --- */}
       <h2 className="text-2xl mb-4">Truth/Dare Difficulty</h2>
       <div className="flex flex-col space-y-3">
-        <label className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            checked={difficulty.normal}
-            onChange={() => onToggleDifficulty('normal')}
-            className="form-checkbox h-5 w-5 text-green-500 bg-gray-700 rounded"
-          />
-          <span className="text-white">NORMAL</span>
-        </label>
-        <label className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            checked={difficulty.deep}
-            onChange={() => onToggleDifficulty('deep')}
-            className="form-checkbox h-5 w-5 text-blue-500 bg-gray-700 rounded"
-          />
-          <span className="text-white">DEEP</span>
-        </label>
-        <label className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            checked={difficulty.spicy}
-            onChange={() => onToggleDifficulty('spicy')}
-            className="form-checkbox h-5 w-5 text-red-500 bg-gray-700 rounded"
-          />
-          <span className="text-white">SPICY</span>
-        </label>
+        {['normal', 'deep', 'spicy'].map(key => (
+          <label key={key} className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              checked={difficulty[key]}
+              onChange={() => onToggleDifficulty(key)}
+              className={`form-checkbox h-5 w-5 ${
+                key === 'normal'
+                  ? 'text-green-500'
+                  : key === 'deep'
+                  ? 'text-blue-500'
+                  : 'text-red-500'
+              } bg-gray-700 rounded`}
+            />
+            <span className="text-white uppercase">{key}</span>
+          </label>
+        ))}
       </div>
     </div>
   )
